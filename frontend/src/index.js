@@ -13,5 +13,5 @@ if (rootElement) {
     </React.StrictMode>
   );
 } else {
-  console.error("Hata: 'root' element bulunamadı!");
+  console.error("Hata: 'root' element bulunamadı! index.html dosyanızda <div id='root'></div> olduğundan emin olun.");
 }
