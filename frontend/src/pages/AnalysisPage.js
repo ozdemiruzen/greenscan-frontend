@@ -13,17 +13,19 @@ const AnalysisPage = () => {
   const [mode, setMode] = useState('eco');
   const [userStats, setUserStats] = useState({ remaining: 3, role: 'guest' });
 
-  const isLoggedIn = localStorage.getItem('user_id');
-  const firstName = localStorage.getItem('user_name') || '';
+  // Güvenli veri çekme (Hata almamak için boş string döndürüyoruz)
+  const isLoggedIn = typeof window !== 'undefined' ? localStorage.getItem('user_id') : null;
+  const firstName = typeof window !== 'undefined' ? localStorage.getItem('user_name') || '' : '';
 
   useEffect(() => {
     const fetchStatus = async () => {
       const userId = localStorage.getItem('user_id') || 'guest_user';
       try {
+        // Backend henüz yayında değilse burası hata verebilir, o yüzden try-catch içinde
         const res = await axios.get(`http://localhost:8000/api/user-status/${userId}`);
         setUserStats({ remaining: res.data.remaining, role: res.data.role });
       } catch (e) { 
-        console.error("Statü bilgisi güncellenemedi", e); 
+        console.warn("Backend henüz bağlı değil, yerel veriler kullanılıyor."); 
       }
     };
     fetchStatus();
@@ -31,6 +33,7 @@ const AnalysisPage = () => {
 
   const downloadPDF = async () => {
     const element = document.getElementById('report-card');
+    if (!element) return;
     const canvas = await html2canvas(element, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -38,7 +41,7 @@ const AnalysisPage = () => {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`GreenScan_Analiz_${result.brand_name}.pdf`);
+    pdf.save(`GreenScan_Analiz_${result?.brand_name || 'Rapor'}.pdf`);
   };
 
   const handleSearch = async () => {
@@ -48,24 +51,25 @@ const AnalysisPage = () => {
     const currentUserId = localStorage.getItem('user_id') || 'guest_user';
     try {
       if (!token) await loginAsGuest();
+      // NOT: Backend'i Render'a taşıdığında bu URL'yi güncelleyeceğiz
       const response = await axios.post('http://localhost:8000/api/analyze', { 
         brand_name: brand, mode: mode, user_id: currentUserId 
       });
       if (response.data.error) { alert(response.data.error); return; }
       setResult(response.data);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) { 
+      alert("Backend bağlantısı kurulamadı. Lütfen server.py'nin çalıştığından emin olun.");
+      console.error(e); 
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="p-8 lg:p-12 flex flex-col items-center min-h-screen bg-[#F9FAFB]">
-      
-      {/* BAŞLIK: Ne devasa ne küçük, Pro-SaaS dengesi (text-4xl/5xl) */}
-      <div className="text-center mb-10 mt-10 animate-in fade-in slide-in-from-top-4 duration-700 w-full max-w-4xl">
-        <h1 className="text-4xl lg:text-5xl font-black mb-5 bg-gradient-to-r from-[#10B981] to-[#3B82F6] bg-clip-text text-transparent font-manrope leading-relaxed py-2 tracking-tight">
-  {isLoggedIn 
-    ? `Merhaba ${firstName}, bugün neyi inceleyelim?` 
-    : "Akıllı Marka Analizi"}
-</h1>
+    <div className="p-8 lg:p-12 flex flex-col items-center min-h-screen bg-[#F9FAFB] w-full">
+      {/* BAŞLIK */}
+      <div className="text-center mb-10 mt-10 w-full max-w-4xl">
+        <h1 className="text-4xl lg:text-5xl font-black mb-5 bg-gradient-to-r from-[#10B981] to-[#3B82F6] bg-clip-text text-transparent leading-tight py-2 tracking-tight">
+          {isLoggedIn ? `Merhaba ${firstName}, bugün neyi inceleyelim?` : "Akıllı Marka Analizi"}
+        </h1>
         <p className="text-gray-400 text-base font-medium italic opacity-80">
           Yapay zeka ile sürdürülebilirlik ve güvenlik denetimi parmaklarınızın ucunda.
         </p>
@@ -81,14 +85,14 @@ const AnalysisPage = () => {
         </button>
       </div>
 
-      {/* ARAMA ÇUBUĞU: İstediğin gibi max-w-2xl ve h-20 ile daha geniş hale getirildi */}
+      {/* ARAMA ÇUBUĞU */}
       <div className="relative w-full max-w-2xl group shadow-sm rounded-full">
         <input 
           className="w-full h-20 px-10 rounded-full bg-white outline-none text-xl border-2 border-transparent focus:border-[#10B981]/15 transition-all placeholder:text-gray-300" 
           placeholder={mode === 'eco' ? "Marka adı girin..." : "Mağaza adı girin..."}
           value={brand} 
           onChange={(e) => setBrand(e.target.value)} 
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
         <button onClick={handleSearch} disabled={loading} className={`absolute right-3 top-3 h-14 px-10 rounded-full flex items-center gap-2 font-black tracking-wide transition-all ${loading ? 'bg-gray-400' : 'bg-black text-white active:scale-95 shadow-lg'}`}>
           {loading ? <Sparkles size={20} className="animate-spin" /> : <Search size={22} />}
@@ -98,8 +102,8 @@ const AnalysisPage = () => {
 
       {/* SONUÇ KARTI */}
       {result && (
-        <div className="mt-12 w-full max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-500">
-          <div id="report-card" className="p-10 border border-gray-100 rounded-[3.5rem] bg-white shadow-2xl relative overflow-hidden">
+        <div className="mt-12 w-full max-w-2xl">
+          <div id="report-card" className="p-10 border border-gray-100 rounded-[3.5rem] bg-white shadow-2xl relative overflow-hidden text-left">
             <div className={`absolute top-0 right-0 w-40 h-40 opacity-5 -mr-10 -mt-10 rounded-full ${mode === 'eco' ? 'bg-[#10B981]' : 'bg-[#3B82F6]'}`} />
             
             <div className="flex justify-between items-start mb-8 relative z-10">
@@ -107,7 +111,7 @@ const AnalysisPage = () => {
                 <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${mode === 'eco' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'}`}>
                   {mode === 'eco' ? 'Ekolojik Rapor' : 'Güvenlik Raporu'}
                 </span>
-                <h2 className="text-3xl font-black mt-3 text-gray-900 leading-tight tracking-normal">{result.brand_name}</h2>
+                <h2 className="text-3xl font-black mt-3 text-gray-900 leading-tight">{result.brand_name}</h2>
               </div>
               <div className="text-right">
                 <div className={`text-5xl font-black ${result.puan > 80 ? 'text-[#10B981]' : 'text-orange-500'}`}>
@@ -120,9 +124,9 @@ const AnalysisPage = () => {
               <div className={`p-3 rounded-xl bg-white shadow-sm ${mode === 'eco' ? 'text-[#10B981]' : 'text-[#3B82F6]'}`}>
                 {result.puan > 80 ? <CheckCircle2 size={26} /> : <AlertCircle size={26} />}
               </div>
-              <div className="flex-1 text-left">
+              <div className="flex-1">
                 <h4 className="font-bold text-gray-400 mb-1.5 text-xs uppercase tracking-wider">Yapay Zeka Özeti</h4>
-                <p className="text-gray-700 font-semibold text-base leading-relaxed tracking-normal">{result.tespit}</p>
+                <p className="text-gray-700 font-semibold text-base leading-relaxed">{result.tespit}</p>
               </div>
             </div>
 
@@ -145,7 +149,7 @@ const AnalysisPage = () => {
             </button>
             
             {userStats.remaining === 0 && (
-              <button onClick={() => window.location.href='/pricing'} className="flex items-center gap-2 text-sm font-bold text-[#3B82F6] hover:underline animate-bounce">
+              <button onClick={() => window.location.href='/pricing'} className="flex items-center gap-2 text-sm font-bold text-[#3B82F6] hover:underline">
                 <Lock size={18} /> Limit Doldu! Pro'ya Geç
               </button>
             )}
@@ -158,7 +162,7 @@ const AnalysisPage = () => {
         <p className="text-[11px] text-gray-400 font-bold uppercase tracking-[0.3em] mb-4">
           © 2026 GreenScan AI • Sürdürülebilirlik Ağı
         </p>
-        <p className="text-[10px] text-gray-400 leading-relaxed font-medium italic px-12">
+        <p className="text-[10px] text-gray-400 leading-relaxed font-medium italic px-12 text-center">
           * Yapay zeka tarafından üretilen sonuçlar birer **öneridir**; kesinlik taahhüt etmez.
         </p>
       </footer>
