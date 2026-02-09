@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Yolları "frontend/src" ekleyerek güncelledik çünkü App.js artık bir üst klasörde
-import { AuthProvider } from './frontend/src/contexts/AuthContext';
-import Sidebar from './frontend/src/components/Sidebar';
-import Navbar from './frontend/src/components/Navbar'; 
-import AnalysisPage from './frontend/src/pages/AnalysisPage';
-import HistoryPage from './frontend/src/pages/HistoryPage';
-import ProfilePage from './frontend/src/pages/ProfilePage';
-import AuthPage from './frontend/src/pages/AuthPage';
-import PricingPage from './frontend/src/pages/PricingPage';
+import { AuthProvider } from './contexts/AuthContext';
+import Sidebar from './components/Sidebar';
+import Navbar from './components/Navbar'; 
+import AnalysisPage from './pages/AnalysisPage';
+import HistoryPage from './pages/HistoryPage';
+import ProfilePage from './pages/ProfilePage';
+import AuthPage from './pages/AuthPage';
+import PricingPage from './pages/PricingPage';
 import './index.css';
 
 function App() {
